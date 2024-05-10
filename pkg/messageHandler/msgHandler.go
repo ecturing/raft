@@ -1,40 +1,42 @@
 package messageHandler
 
-import "raft/pkg/rpc/net"
+import (
+	"raft/pkg/rpc/Entries"
+	"raft/pkg/rpc/net"
+)
 
 type MsgHandler interface {
-	Vote(arg interface{}) interface{}
-	Dispatch(arg interface{}) interface{}
-	Register(arg interface{}) interface{}
-	Heartbeat(arg interface{}) interface{}
+	Vote(arg Entries.RequestVoteArgs) Entries.RequestVoteReply     //向外方法，向外发出投票信息
+	Dispatch(arg Entries.DispatchLogArgs) Entries.RequestVoteReply //向外方法，向外分发日志
+	Register(arg Entries.RegisterArgs) Entries.RegisterReply       //向外方法，向主节点提供新节点信息
+	Heartbeat(arg Entries.HeartbeatArgs) Entries.HeartbeatReply    //向外方法，向其他节点发送心跳信息
 }
 
-type RpcMsgHandler struct {
-	Rpc net.RpcCore
-}
-
-var api net.RaftRpcAPI
-
-func (r RpcMsgHandler) Vote(arg interface{}) interface{} {
+func (r RpcMsgHandler) Vote(arg Entries.RequestVoteArgs) Entries.RequestVoteReply {
 	//TODO implement me
-	api.Vote()
 	panic("implement me")
 }
 
-func (r RpcMsgHandler) Dispatch(arg interface{}) interface{} {
+func (r RpcMsgHandler) Dispatch(arg Entries.DispatchLogArgs) Entries.RequestVoteReply {
 	//TODO implement me
-	api.DisPatchLog()
 	panic("implement me")
 }
 
-func (r RpcMsgHandler) Register(arg interface{}) interface{} {
+func (r RpcMsgHandler) Register(arg Entries.RegisterArgs) Entries.RegisterReply {
 	//TODO implement me
-	api.Register()
+	net.Call(1, methodName+"Register()", arg, nil)
+	return Entries.RegisterReply{}
+}
+
+func (r RpcMsgHandler) Heartbeat(arg Entries.HeartbeatArgs) Entries.HeartbeatReply {
+	//TODO implement me
 	panic("implement me")
 }
 
-func (r RpcMsgHandler) Heartbeat(arg interface{}) interface{} {
-	//TODO implement me
-	api.HeartBeat()
-	panic("implement me")
+type RpcMsgHandler struct{}
+
+const methodName = "RpcCore"
+
+func NewMsgHandler() MsgHandler {
+	return RpcMsgHandler{}
 }
