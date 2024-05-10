@@ -4,12 +4,11 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"raft/api"
 	"raft/log"
+	"raft/pkg/api"
 	"raft/pkg/messageHandler"
+	"raft/pkg/rpc/Entries"
 	"raft/pkg/rpc/net"
-	"raft/share"
-	"raft/share/rpcProto"
 	"time"
 )
 
@@ -18,21 +17,22 @@ const (
 )
 
 var (
-	NumOFNodes []uint
 	//NodeIP 对于docker环境在启动容器时会填入容器的IP地址
 	NodeIP     = os.Getenv("IP")
-	msgHandler messageHandler.RpcMsgHandler
+	msgHandler = messageHandler.NewMsgHandler()
+	ctx, cf    = context.WithCancel(context.Background())
+	raft       = NewCore(ctx, cf)
 )
 
 // ----------------------------------------RaftCore部分----------------------------------------
 type RaftCore struct {
-	NodeId   uint64                    //节点ID
+	nodeId   uint64                    //节点ID
 	ticker   *time.Ticker              //内置状态定时器
-	FSM      State                     //状态机
-	Term     uint                      //任期号
-	NodeList []*rpcProto.NetMeta       //节点列表
+	fsm      State                     //状态机
+	term     uint                      //任期号
+	NodeList []*Entries.NetMeta        //节点列表
 	logs     []*Logs                   //Raft算法需要同步的日志
-	Msg      messageHandler.MsgHandler //消息处理器
+	msg      messageHandler.MsgHandler //消息处理器
 	apiCore  *http.Server              //api服务，仅在Leader节点开启
 	Ctx      context.Context           //系统上下文
 	cf       context.CancelFunc        //取消函数
@@ -40,13 +40,13 @@ type RaftCore struct {
 
 // NewCore 创建一个Raft核心/**
 func NewCore(ctx context.Context, cf context.CancelFunc) *RaftCore {
-	return &RaftCore{NodeId: 0,
+	return &RaftCore{nodeId: 0,
 		ticker:   time.NewTicker(RESETTIME),
-		FSM:      NewStateMachine(),
-		Term:     0,
-		NodeList: make([]*rpcProto.NetMeta, 0),
+		fsm:      NewStateMachine(),
+		term:     0,
+		NodeList: make([]*Entries.NetMeta, 0),
 		logs:     make([]*Logs, 0),
-		Msg:      msgHandler,
+		msg:      msgHandler,
 		apiCore:  api.NewApiServer(),
 		Ctx:      ctx,
 		cf:       cf,
@@ -55,12 +55,7 @@ func NewCore(ctx context.Context, cf context.CancelFunc) *RaftCore {
 
 func (c *RaftCore) Start() {
 	subCtx := context.WithoutCancel(c.Ctx)
-	go c.termTick(subCtx)
-	net.Call("BOOTSTRAP.Register", &rpcProto.RegisterArgs{
-		NodeId: c.NodeId,
-		IP:     NodeIP,
-		Port:   net.NodePort,
-	}, &rpcProto.RegisterReply{}) //注册节点，bootstrap节点会返回所有当前集群节点信息
+	go c.termTick(subCtx) //注册节点，bootstrap节点会返回所有当前集群节点信息
 	log.Logger.Println("Raft Node is started")
 }
 
@@ -77,7 +72,7 @@ func (c *RaftCore) termTick(ctx context.Context) {
 		select {
 		case <-c.ticker.C:
 			log.Logger.Println("本节点时间到期，尝试选举")
-			c.FSM.TryToLeader()
+			c.fsm.SetLeader()
 		case <-net.HeartBeatReceived:
 			c.ticker.Reset(RESETTIME)
 		case <-ctx.Done(): //根上下文取消，停止定时器
@@ -88,11 +83,16 @@ func (c *RaftCore) termTick(ctx context.Context) {
 }
 
 func (c *RaftCore) Register() {
-	share.DataManger.Set("RaftCore", c)
+	arg := Entries.RegisterArgs{
+		NodeId: c.nodeId,
+		IP:     NodeIP,
+		Port:   net.NodePort,
+	}
+	msgHandler.Register(arg)
 }
 
 func (c *RaftCore) GetState() State {
-	return c.FSM
+	return c.fsm
 }
 
 // ----------------------------------------日志部分----------------------------------------
