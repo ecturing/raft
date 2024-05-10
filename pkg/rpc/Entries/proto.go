@@ -1,4 +1,4 @@
-package rpcProto
+package Entries
 
 // rpc请求结构体
 type RequestVoteArgs struct {
