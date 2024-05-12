@@ -12,14 +12,57 @@ var (
 	httpCtx, cf = context.WithCancel(context.Background())
 )
 
-func NewApiServer() *http.Server {
+type APIServer interface {
+	Start() error
+	Stop()
+}
+
+type Api struct {
+	server *http.Server
+}
+
+// Start 启动API服务
+/*
+ 可能潜在bug，select可能需要等待，先这样写
+*/
+func (a Api) Start() error {
+	//TODO implement me
+	errChan := make(chan error, 1)
+	go func() {
+		err := a.server.ListenAndServe()
+		if err != nil {
+			errChan <- err
+		}
+	}()
+
+	select {
+	case err := <-errChan:
+		return err
+	default:
+
+	}
+	go stopListen(httpCtx, a.server)
+	return nil
+}
+
+func (a Api) Stop() {
+	//TODO implement me
+	cf()
+	time.Sleep(1 * time.Second)
+	panic("implement me")
+}
+
+func NewApiServer() Api {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/sublog", submitLog)
 	mux.HandleFunc("/getlogs", getLogs)
-	return &http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+	return Api{
+		server: &http.Server{
+			Addr:    ":8080",
+			Handler: mux,
+		},
 	}
+
 }
 
 func stopListen(ctx context.Context, s *http.Server) {
@@ -38,17 +81,6 @@ func stopListen(ctx context.Context, s *http.Server) {
 		}
 		return
 	}
-}
-
-func stop() {
-	cf()
-	time.Sleep(1 * time.Second)
-}
-
-func apiServerStart() {
-	server := NewApiServer()
-	go server.ListenAndServe()
-	go stopListen(httpCtx, server)
 }
 
 // 外部提交日志到集群的接口
