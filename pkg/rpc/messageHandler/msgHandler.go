@@ -28,13 +28,16 @@ func (r RpcMsgHandler) Vote(arg Entries.RequestVoteArgs) Entries.RequestVoteRepl
 	var reply Entries.RequestVoteReply
 
 	for _, meta := range r.nodeList {
-		manager.AsyncCall(rpcCtx, meta, methodName+"Vote()", arg, reply, func(resp interface{}, err error) {
-			if resp.(Entries.RequestVoteReply).VoteGranted {
-				voteNum = append(voteNum, true)
+		manager.AsyncCall(rpcCtx, meta, methodName+"Vote()", arg, func(resp any, err error) {
+			if err != nil {
+				// TODO 错误处理
 			} else {
-				voteNum = append(voteNum, false)
+				if resp.(Entries.RequestVoteReply).VoteGranted {
+					voteNum = append(voteNum, true)
+				} else {
+					voteNum = append(voteNum, false)
+				}
 			}
-
 		})
 	}
 	num := share.CountVote(voteNum, func(v bool) bool {
@@ -53,7 +56,7 @@ func (r RpcMsgHandler) Dispatch(arg Entries.DispatchLogArgs) Entries.DispatchLog
 	//TODO implement me
 	for _, meta := range r.nodeList {
 		//异步任务，防止阻塞主线程
-		manager.AsyncCall(rpcCtx, meta, methodName+"Dispatch()", arg, Entries.DispatchLogReply{}, func(resp interface{}, err error) {
+		manager.AsyncCall(rpcCtx, meta, methodName+"Dispatch()", arg, func(resp any, err error) {
 
 		})
 	}
@@ -67,13 +70,12 @@ func (r RpcMsgHandler) Register(arg Entries.RegisterArgs) Entries.RegisterReply 
 }
 
 func (r RpcMsgHandler) Heartbeat(arg Entries.HeartbeatArgs) Entries.HeartbeatReply {
-	singleCallReply := Entries.HeartbeatReply{}
 	for _, meta := range r.nodeList {
-		manager.AsyncCall(rpcCtx, meta, methodName+"Heartbeat()", arg, &singleCallReply, func(resp interface{}, err error) {
+		manager.AsyncCall(rpcCtx, meta, methodName+"Heartbeat()", arg, func(resp any, err error) {
 			if err != nil {
 				log.Logger.Printf("Call failed, meta: %s\n", meta)
 			} else {
-				if singleCallReply.LogBehind {
+				if resp.(Entries.HeartbeatReply).LogBehind {
 					//TODO try to process missing logs when current node logs behind the leader
 					log.Logger.Printf("Log behind, meta: %s\n", meta)
 				}

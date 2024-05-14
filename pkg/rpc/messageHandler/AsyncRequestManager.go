@@ -14,7 +14,7 @@ type AsyncRpcClientManager struct {
 	calls map[uint64]RpcCallback // 使用请求ID映射到其对应的回调函数
 }
 
-type RpcCallback func(resp interface{}, err error)
+type RpcCallback func(resp any, err error)
 
 // NewAsyncRpcClientManager 创建一个新的异步RPC客户端管理器
 func NewAsyncRpcClientManager() *AsyncRpcClientManager {
@@ -28,7 +28,8 @@ func generateRequestId() uint64 {
 }
 
 // AsyncCall 发起异步RPC调用，并注册回调处理响应或错误
-func (m *AsyncRpcClientManager) AsyncCall(ctx context.Context, meta *Entries.NetMeta, serviceMethod string, args any, resp any, callback RpcCallback) uint64 {
+func (m *AsyncRpcClientManager) AsyncCall(ctx context.Context, meta *Entries.NetMeta, serviceMethod string, args any, callback RpcCallback) uint64 {
+	var resp any
 	reqID := generateRequestId()
 	rpcClient, err := rpc.DialHTTP("tcp", meta.Ip+":"+meta.Port)
 	if err != nil {

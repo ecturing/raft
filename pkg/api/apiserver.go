@@ -26,7 +26,7 @@ type Api struct {
  可能潜在bug，select可能需要等待，先这样写
 */
 func (a Api) Start() error {
-	//TODO implement me
+	//TODO maybe some bugs
 	errChan := make(chan error, 1)
 	go func() {
 		err := a.server.ListenAndServe()

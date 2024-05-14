@@ -2,8 +2,8 @@ package raft
 
 import (
 	"context"
+	"raft/log"
 	"raft/pkg/rpc/Entries"
-	"raft/share"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 
 var (
 	//heartBeatCtx不能是根上下文，因为heartBeatCtx会因为节点状态的改变而取消，根上下文除非程序结束，否则不会取消
-	heartBeatCtx, _ = context.WithCancel(share.DataManger.Get("RaftCore").(RaftCore).Ctx)
+	heartBeatCtx, _ = context.WithCancel(raft.Ctx)
 )
 
 type NodeState int
@@ -41,8 +41,11 @@ func (sm *StateMachine) SetLeader() {
 	// TODO  实现转移Leader函数
 	reply := msgHandler.Vote(Entries.RequestVoteArgs{Term: raft.term})
 	if reply.VoteGranted {
+		// TODO 实现成为Leader后所有包括API服务的启动等等，若有错误，则回滚
 		sm.state = Leader
+		log.Logger.Println("Node State:Leader")
 	}
+
 }
 
 // SetFollower Follower状态转移，Candidate->Follower

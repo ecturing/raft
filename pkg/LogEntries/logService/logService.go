@@ -1,8 +1,8 @@
 package logService
 
 type LogService interface {
-	AppendLog(log string) []string
-	Persist()
+	AppendLog(log string) error
+	Persist() error
 }
 
 type service struct{}
@@ -11,12 +11,12 @@ func NewLogService() LogService {
 	return service{}
 }
 
-func (s service) AppendLog(log string) []string {
+func (s service) AppendLog(log string) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s service) Persist() {
+func (s service) Persist() error {
 	//TODO implement me
 	panic("implement me")
 }
