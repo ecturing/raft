@@ -6,5 +6,5 @@ import (
 )
 
 var (
-	Logger = log.New(os.Stdout, "[Raft]", log.LstdFlags)
+	RLogger = log.New(os.Stdout, "[Raft]", log.LstdFlags)
 )
