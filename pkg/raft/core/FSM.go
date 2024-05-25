@@ -1,9 +1,11 @@
-package raft
+package core
 
 import (
 	"context"
 	"raft/log"
 	"raft/pkg/rpc/Entries"
+	"raft/pkg/rpc/messageHandler"
+	"raft/share"
 )
 
 const (
@@ -15,7 +17,7 @@ const (
 
 var (
 	//heartBeatCtx不能是根上下文，因为heartBeatCtx会因为节点状态的改变而取消，根上下文除非程序结束，否则不会取消
-	heartBeatCtx, _ = context.WithCancel(raft.Ctx)
+	heartBeatCtx, hbCf = context.WithCancel(raft.Ctx)
 )
 
 type NodeState int
@@ -37,13 +39,32 @@ func NewStateMachine() *StateMachine {
 }
 
 // SetLeader Leader状态转移，Candidate->Leader
+//转换为Leader状态后：
+//1.启动api服务
+
 func (sm *StateMachine) SetLeader() {
 	// TODO  实现转移Leader函数
-	reply := msgHandler.Vote(Entries.RequestVoteArgs{Term: raft.term})
+	reply := msgHandler.SendVote(Entries.RequestVoteArgs{Term: raft.term})
 	if reply.VoteGranted {
 		// TODO 实现成为Leader后所有包括API服务的启动等等，若有错误，则回滚
 		sm.state = Leader
-		log.Logger.Println("Node State:Leader")
+		messageHandler.SetLeaderInfo(&Entries.NetMeta{
+			Ip:   NodeIP,
+			Port: share.NodePort,
+		}) //向Bootstrap节点注册该节点已成功成为Leader
+		err := raft.apiCore.Start()
+		raft.tickStop() //主节点不需要选举定时器
+		go raft.msg.SendHeartbeat(heartBeatCtx, Entries.HeartbeatArgs{
+			Term:     raft.term,
+			LogIndex: raft.logs.GetIndex(),
+		})
+		if err != nil {
+			return
+		}
+		log.RLogger.Println("Node State:Leader")
+	} else {
+		sm.SetFollower()
+		log.RLogger.Println("try to Leader failed, Node State:Follower")
 	}
 
 }
@@ -54,6 +75,7 @@ func (sm *StateMachine) SetFollower() {
 	//TODO 实现转移Follower函数
 	//subctx, _ := context.WithCancel(heartBeatCtx)
 	sm.state = Follower
+	hbCf()
 }
 
 // SetCandidate Candidate状态转移，Follower->Candidate
