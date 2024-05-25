@@ -5,6 +5,15 @@ import (
 	"os"
 )
 
+func init() {
+	RLogger.SetFlags(log.LstdFlags)
+	RLogger.SetOutput(os.Stdout)
+}
+
 var (
-	RLogger = log.New(os.Stdout, "[Raft]", log.LstdFlags)
+	RLogger log.Logger
 )
+
+func SetPrefix(prefix string) {
+	RLogger.SetPrefix(prefix)
+}

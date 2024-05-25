@@ -1,5 +1,9 @@
 package main
 
-func main() {
+import (
+	"raft/pkg/raft/core"
+)
 
+func main() {
+	core.Start()
 }
