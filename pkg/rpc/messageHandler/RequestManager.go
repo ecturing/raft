@@ -26,9 +26,6 @@ func newAsyncRpcClientManager() *rpcClientManager {
 		calls: make(map[uint64]RpcCallback),
 	}
 }
-func NewSyncRpcClientManager() *SyncRpcClientManager {
-	return &SyncRpcClientManager{}
-}
 func generateRequestId() uint64 {
 	return uint64(rand.Int63())
 
@@ -51,23 +48,20 @@ func (m *rpcClientManager) asyncCall(ctx context.Context, meta *Entries.NetMeta,
 		select {
 		case <-call.Done:
 			// 调用完成，执行回调处理结果
-			if err := call.Error; err != nil {
-				log.RLogger.Println("RPC call failed: %v", err)
-				callback(nil, err)
-			} else {
-				callback(resp, nil) // 假设resp已经被赋值
-			}
+			callback(resp, call.Error) // 假设resp已经被赋值
 			// 移除已完成的请求
 			m.mu.Lock()
 			delete(m.calls, reqID)
 			m.mu.Unlock()
+			log.RLogger.Println("async RPC call done")
 			return //完成任务，协程结束
 		case <-ctx.Done():
 			// 上下文取消，手动移除并处理（可选）
 			m.mu.Lock()
 			delete(m.calls, reqID)
 			m.mu.Unlock()
-			log.RLogger.Println("RPC call timeout cancelled")
+			log.RLogger.Println("async call goroutine stop:", serviceMethod)
+			return
 		}
 	}()
 

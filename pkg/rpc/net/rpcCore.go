@@ -5,11 +5,9 @@ import (
 	"net/http"
 	"net/rpc"
 	"raft/log"
-	"raft/pkg/rpc/Entries"
+	"raft/share"
 	"time"
 )
-
-const NodePort = "127.0.0.1:1234"
 
 var (
 	heartbeatTime = 1 * time.Second
@@ -18,30 +16,24 @@ var (
 type RpcCore struct {
 	tick *time.Ticker //心跳定时器
 }
-type RaftRpcAPI interface {
-	Vote(args Entries.RequestVoteArgs, reply *Entries.RequestVoteReply) error        // Vote 投票函数
-	DisPatchLog(args Entries.DispatchLogArgs, reply *Entries.DispatchLogReply) error // DisPatchLog 分发Log函数
-	Register(args Entries.RegisterArgs, reply *Entries.RegisterReply) error          // Register 注册节点函数
-	HeartBeat(args Entries.HeartbeatArgs, reply *Entries.HeartbeatReply) error       // HeartBeat 心跳函数
-}
 
-// Run 阻塞方法，注意协程启动
-func (r *RpcCore) Run() {
-	log.Logger.Println("Raft Node RPC is listening on", NodePort)
+// run 阻塞方法，注意协程启动
+func (r *RpcCore) run() {
+	log.RLogger.Println("Raft Node RPC is listening on", share.RPCServerPort)
 	rpcRegisterErr := rpc.RegisterName("RpcCore", &RpcCore{tick: time.NewTicker(heartbeatTime)})
 	if rpcRegisterErr != nil {
-		log.Logger.Panicln("rpcRegisterErr:", rpcRegisterErr)
+		log.RLogger.Panicln("rpcRegisterErr:", rpcRegisterErr)
 		return
 	}
 	rpc.HandleHTTP()
 	// Initialize the rpcServer
-	rpcListener, netListenerErr := net.Listen("tcp", NodePort)
+	rpcListener, netListenerErr := net.Listen("tcp", share.RPCServerPort)
 	if netListenerErr != nil {
 		panic(netListenerErr)
 	}
 	rpcHttpErr := http.Serve(rpcListener, nil)
 	if rpcHttpErr != nil {
-		log.Logger.Panicln("rpcHttpErr:", rpcHttpErr)
+		log.RLogger.Panicln("rpcHttpErr:", rpcHttpErr)
 		return
 	}
 }
@@ -57,6 +49,12 @@ func rpcErrHandler(err error) {
 	}
 }
 
-func (r *RpcCore) SetTimeTick(tick *time.Ticker) {
+func (r *RpcCore) setTimeTick(tick *time.Ticker) {
 	r.tick = tick
+}
+
+func RPCStart() {
+	rpcCore := &RpcCore{}
+	rpcCore.setTimeTick(time.NewTicker(heartbeatTime))
+	go rpcCore.run()
 }
