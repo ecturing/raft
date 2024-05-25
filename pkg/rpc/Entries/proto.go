@@ -27,20 +27,18 @@ type RegisterReply struct{}
 
 type HeartbeatArgs struct {
 	Term     uint
-	LogIndex uint
+	LogIndex int
 }
 type HeartbeatReply struct {
 	LogBehind bool
 }
 
-type Logs interface {
-	persist()
+type LeaderArgs struct {
+	IP   string
+	Port string
 }
-
-type LogsEntry struct {
-	metaData string
-}
-
-func (l *LogsEntry) persist() {
-
+type LeaderReply struct {
+	Empty bool
+	IP    string
+	Port  string
 }
