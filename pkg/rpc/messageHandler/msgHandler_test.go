@@ -30,8 +30,8 @@ func TestRpcMsgHandler_Vote(t *testing.T) {
 			r := RpcMsgHandler{
 				nodeList: tt.fields.nodeList,
 			}
-			if got := r.Vote(tt.args.arg); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Vote() = %v, want %v", got, tt.want)
+			if got := r.SendVote(tt.args.arg); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SendVote() = %v, want %v", got, tt.want)
 			}
 		})
 	}
