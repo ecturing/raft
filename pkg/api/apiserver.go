@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"raft/log"
+	"raft/share"
 	"time"
 )
 
@@ -58,7 +59,7 @@ func NewApiServer() Api {
 	mux.HandleFunc("/getlogs", getLogs)
 	return Api{
 		server: &http.Server{
-			Addr:    ":8080",
+			Addr:    share.ApiServerPort,
 			Handler: mux,
 		},
 	}
@@ -67,13 +68,13 @@ func NewApiServer() Api {
 
 func stopListen(ctx context.Context, s *http.Server) {
 	defer func() {
-		log.Logger.Println("stop goroutine is exiting...")
+		log.RLogger.Println("stop goroutine is exiting...")
 	}()
 
-	log.Logger.Println("stop goroutine is listening...")
+	log.RLogger.Println("stop goroutine is listening...")
 	select {
 	case <-ctx.Done():
-		log.Logger.Println("have a stop signal, stop the server...")
+		log.RLogger.Println("have a stop signal, stop the server...")
 		httpCtxShutdownErr := s.Shutdown(ctx)
 		if httpCtxShutdownErr != nil {
 			// TODO 处理httpCtx错误
